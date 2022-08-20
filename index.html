@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Hello World</title>
+    <script src="react.17.0.js"></script>
+    <script src="react-dom.17.0.js"></script>
+    <script src="babel.min.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel">
+      function MyApp() {
+        // const [value, setValue] = useState(0);
+        return (
+          <div>
+            <span>
+              Hi, <b>China</b>
+            </span>
+            <A />
+            <B />
+          </div>
+        );
+      }
+
+      class A extends React.Component {
+        componentDidMount() {
+          console.log(`App Mount`);
+          console.log(`A组件对应的fiber节点: `, this._reactInternals);
+        }
+        render() {
+          return <h1>A</h1>;
+        }
+      }
+
+      function B() {
+        return <h2>B</h2>;
+      }
+
+      const container = document.getElementById("root");
+      const root = ReactDOM.render(<MyApp />, container);
+    </script>
+  </body>
+</html>
