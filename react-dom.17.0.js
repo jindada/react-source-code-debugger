@@ -16432,6 +16432,14 @@
     }
 
     // 虽然叫命名叫Array 但是也只会创建一个fiber节点
+    /**
+     * TODO 多节点Diff的核心逻辑
+     * 第一次循环: 遍历最长公共序列(key 相同), 公共序列的节点都视为可复用
+        如果newChildren序列被遍历完, 那么oldFiber序列中剩余节点都视为删除(打上Deletion标记)
+        如果oldFiber序列被遍历完, 那么newChildren序列中剩余节点都视为新增(打上Placement标记)
+      第二次循环: 遍历剩余非公共序列, 优先复用 oldFiber 序列中的节点
+        在对比更新阶段(非初次创建fiber, 此时shouldTrackSideEffects被设置为true). 第二次循环遍历完成之后, oldFiber序列中没有匹配上的节点都视为删除(打上Deletion标记)
+     */
     function reconcileChildrenArray(
       returnFiber,
       currentFirstChild,
@@ -16470,6 +16478,7 @@
       var newIdx = 0;
       var nextOldFiber = null;
 
+      // 1. 第一次循环: 遍历最长公共序列(key相同), 公共序列的节点都视为可复用
       for (; oldFiber !== null && newIdx < newChildren.length; newIdx++) {
         if (oldFiber.index > newIdx) {
           nextOldFiber = oldFiber;
@@ -16522,12 +16531,14 @@
         oldFiber = nextOldFiber;
       }
 
+      // 如果newChildren序列被遍历完, 那么oldFiber序列中剩余节点都视为删除(打上Deletion标记)
       if (newIdx === newChildren.length) {
         // We've reached the end of the new children. We can delete the rest.
         deleteRemainingChildren(returnFiber, oldFiber);
         return resultingFirstChild;
       }
 
+      // 如果oldFiber序列被遍历完, 那么newChildren序列中剩余节点都视为新增(打上Placement标记)
       if (oldFiber === null) {
         // If we don't have any more existing children we can choose a fast path
         // since the rest will all be insertions.
@@ -16553,8 +16564,10 @@
         return resultingFirstChild;
       } // Add all children to a key map for quick lookups.
 
+      // 将第一次循环后, oldFiber剩余序列加入到一个map中. 目的是为了第二次循环能顺利的找到可复用节点
       var existingChildren = mapRemainingChildren(returnFiber, oldFiber); // Keep scanning and use the map to restore deleted items as moves.
 
+      // 2. 第二次循环: 遍历剩余非公共序列, 优先复用oldFiber序列中的节点
       for (; newIdx < newChildren.length; newIdx++) {
         var _newFiber2 = updateFromMap(
           existingChildren,
@@ -16589,6 +16602,7 @@
         }
       }
 
+      // newChildren已经遍历完, 那么oldFiber序列中剩余节点都视为删除(打上Deletion标记)
       if (shouldTrackSideEffects) {
         // Any existing children that weren't consumed above were deleted. We need
         // to add them to the deletion list.
@@ -16836,6 +16850,11 @@
 
     /**
      * 调度 单个 元素
+     * TODO 单节点Diff
+     * 如果是新增节点, 直接新建 fiber, 没有多余的逻辑
+       如果是对比更新
+        如果key和type都相同(即: ReactElement.key === Fiber.key 且 Fiber.elementType === ReactElement.type), 则复用
+        否则新建
      */
     function reconcileSingleElement(
       returnFiber,
@@ -16847,10 +16866,9 @@
       var key = element.key;
       var child = currentFirstChild;
 
+      // TODO currentFirstChild !== null, 表明是对比更新阶段 为什么
       while (child !== null) {
-        // 更新吗?
-        // TODO: If key === null and child.key === null, then this only applies to
-        // the first item in the list.
+        // 1 先判断前后的key是否相同
         if (child.key === key) {
           switch (child.tag) {
             case Fragment: {
@@ -16876,12 +16894,15 @@
             // eslint-disable-next-lined no-fallthrough
 
             default: {
+              // 判断类型是否相同
               if (
                 child.elementType === element.type || // Keep this check inline so it only runs on the false path:
                 isCompatibleFamilyForHotReloading(child, element)
               ) {
+                // 已经匹配上了, 如果有兄弟节点, 需要给兄弟节点打上Deletion标记 因为当前是单节点
                 deleteRemainingChildren(returnFiber, child.sibling);
 
+                // 构造fiber节点, 新的fiber对象会复用current.stateNode, 即可复用DOM对象
                 var _existing3 = useFiber(child, element.props);
 
                 _existing3.ref = coerceRef(returnFiber, child, element);
@@ -16897,11 +16918,13 @@
 
               break;
             }
-          } // Didn't match.
+          }
 
+          // Didn't match. 给当前节点点打上Deletion标记
           deleteRemainingChildren(returnFiber, child);
           break;
         } else {
+          // key不相同, 匹配失败, 给当前节点打上Deletion标记
           deleteChild(returnFiber, child);
         }
 
@@ -16918,6 +16941,7 @@
         created.return = returnFiber;
         return created;
       } else {
+        // 新建节点
         var _created4 = createFiberFromElement(
           element,
           returnFiber.mode,
@@ -17043,6 +17067,9 @@
       }
 
       // 处理多子节点
+      // TODO reconcileChildrenArray和reconcileChildrenIterator的核心逻辑几乎一致,
+
+      // 针对数组类型
       if (isArray$1(newChild)) {
         return reconcileChildrenArray(
           returnFiber,
@@ -17052,6 +17079,7 @@
         );
       }
 
+      // 针对可迭代类型
       if (getIteratorFn(newChild)) {
         return reconcileChildrenIterator(
           returnFiber,
@@ -17126,6 +17154,7 @@
     }
 
     var currentChild = workInProgress.child;
+    // 在构造fiber节点时会优先复用workInProgress.alternate(不开辟新的内存空间), 否则才会创建新的fiber对象.
     var newChild = createWorkInProgress(
       currentChild,
       currentChild.pendingProps
@@ -20166,7 +20195,6 @@
     renderLanes
   ) {
     if (current === null) {
-      // 更新阶段
       // If this is a fresh new component that hasn't been rendered yet, we
       // won't update its child set by applying minimal side-effects. Instead,
       // we will add them all to the child before it gets rendered. That means
@@ -20699,7 +20727,7 @@
       return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
     } // React DevTools reads this flag.
 
-    // PerformedWork是啥
+    // PerformedWork
     workInProgress.flags |= PerformedWork;
     reconcileChildren(current, workInProgress, nextChildren, renderLanes);
     return workInProgress.child;
@@ -22555,6 +22583,7 @@
     markSkippedUpdateLanes(workInProgress.lanes); // Check if the children have any pending work.
 
     if (!includesSomeLane(renderLanes, workInProgress.childLanes)) {
+      // 渲染优先级不包括 workInProgress.childLanes, 表明子节点也无需更新. 返回null, 直接进入回溯阶段.
       // The children don't have any work either. We can skip them.
       // TODO: Once we add back resuming, we should check if the children are
       // a work-in-progress set. If so, we need to transfer their effects.
@@ -22562,6 +22591,7 @@
     } else {
       // This fiber doesn't have work, but its subtree does. Clone the child
       // fibers and continue.
+      // 本fiber虽然不用更新, 但是子节点需要更新. clone并返回子节点
       cloneChildFibers(current, workInProgress);
       return workInProgress.child;
     }
@@ -22626,7 +22656,6 @@
    * 更新当前fiber的状态 并且创建/更新当前fiber的第一个子节点
    */
   function beginWork(current, workInProgress, renderLanes) {
-    // debugger;
     var updateLanes = workInProgress.lanes;
 
     {
@@ -22650,6 +22679,7 @@
     // 更新阶段
     if (current !== null) {
       // 更新逻辑
+      // 新旧props对比
       var oldProps = current.memoizedProps;
       var newProps = workInProgress.pendingProps;
 
@@ -22662,7 +22692,10 @@
         // This may be unset if the props are determined to be equal later (memo).
         didReceiveUpdate = true;
       } else if (!includesSomeLane(renderLanes, updateLanes)) {
+        debugger;
         // 判断本次更新是否有正在进行的任务
+        // 当前渲染优先级renderLanes不包括fiber.lanes, 表明当前fiber节点无需更新
+
         didReceiveUpdate = false; // This fiber does not have any pending work. Bailout without entering
         // the begin phase. There's still some bookkeeping we that needs to be done
         // in this optimized path, mostly pushing stuff onto the stack.
@@ -22842,6 +22875,8 @@
           }
         }
 
+        // 当前fiber节点无需更新, 调用bailoutOnAlreadyFinishedWork循环检测子节点是否需要更新
+        // bail out英文短语翻译为解救, 纾困
         return bailoutOnAlreadyFinishedWork(
           current,
           workInProgress,
@@ -22933,7 +22968,7 @@
         return updateHostRoot(current, workInProgress, renderLanes);
 
       case HostComponent: // 元素节点
-        // debugger;
+        debugger;
         return updateHostComponent(current, workInProgress, renderLanes);
 
       case HostText: // 文本节点
@@ -25984,7 +26019,8 @@
    * 注册调度任务, 经过Scheduler包的调度, 间接进行fiber构造.
    */
   function scheduleUpdateOnFiber(fiber, lane, eventTime) {
-    // debugger;
+    debugger;
+    // 更新阶段首先进来的是触发了更新的fiber
     console.log(fiber); // HostRootFiber
 
     checkForNestedUpdates();
@@ -26110,6 +26146,7 @@
   function markUpdateLaneFromFiberToRoot(sourceFiber, lane) {
     // Update the source fiber's lanes
     sourceFiber.lanes = mergeLanes(sourceFiber.lanes, lane);
+    // workingInProgress
     var alternate = sourceFiber.alternate;
 
     if (alternate !== null) {
@@ -26129,6 +26166,8 @@
     var parent = sourceFiber.return;
     // parent = null
 
+    // 从sourceFiber开始, 向上遍历所有节点, 直到HostRootFiber. 设置沿途所有节点(包括alternate)的childLanes
+    // ps: 通过设置fiber.lanes和fiber.childLanes就可以辅助判断子树是否需要更新
     while (parent !== null) {
       parent.childLanes = mergeLanes(parent.childLanes, lane);
       alternate = parent.alternate;
@@ -26148,7 +26187,7 @@
     }
 
     if (node.tag === HostRoot) {
-      var root = node.stateNode;
+      var root = node.stateNode; // fiberRootNode
       return root;
     } else {
       return null;
@@ -27244,6 +27283,7 @@
       workInProgressRootExitStatus = RootCompleted;
     }
   }
+  scheduleUpdateOnFiber;
 
   function resetChildLanes(completedWork) {
     if (

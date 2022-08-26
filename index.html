@@ -11,11 +11,11 @@
     <div id="root"></div>
     <script type="text/babel">
       function MyApp() {
-        // const [value, setValue] = useState(0);
         return (
           <div>
             <span>
-              Hi, <b>China</b>
+              Hi,
+              <b>China</b>
             </span>
             <A />
             <B />
@@ -34,7 +34,8 @@
       }
 
       function B() {
-        return <h2>B</h2>;
+        const [value, setValue] = React.useState(0);
+        return <h2 onClick={() => setValue(value + 1)}>{value}</h2>;
       }
 
       const container = document.getElementById("root");
