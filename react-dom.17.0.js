@@ -17995,6 +17995,7 @@
     secondArg,
     nextRenderLanes
   ) {
+    // --------------- 1. 设置全局变量 -------------------
     renderLanes = nextRenderLanes;
     currentlyRenderingFiber$1 = workInProgress;
 
@@ -18006,6 +18007,7 @@
         current !== null && current.type !== workInProgress.type;
     }
 
+    // 清除当前fiber的遗留状态
     workInProgress.memoizedState = null;
     workInProgress.updateQueue = null;
     workInProgress.lanes = NoLanes; // The following should have already been reset
@@ -18019,6 +18021,8 @@
     // Non-stateful hooks (e.g. context) don't get added to memoizedState,
     // so memoizedState would be null during updates and mounts.
 
+    // --------------- 2. 调用function,生成子级ReactElement对象 -------------------
+    // 指定dispatcher, 区分mount和update
     {
       if (current !== null && current.memoizedState !== null) {
         ReactCurrentDispatcher$1.current = HooksDispatcherOnUpdateInDEV;
@@ -18035,7 +18039,9 @@
       }
     }
 
+    // 执行function函数, 其中进行分析Hooks的使用
     var children = Component(props, secondArg); // Check if there was a render phase update
+    debugger;
 
     if (didScheduleRenderPhaseUpdateDuringThisPass) {
       // Keep rendering in a loop for as long as render phase updates continue to
@@ -18083,6 +18089,9 @@
     } // This check uses currentHook so that it works the same in DEV and prod bundles.
     // hookTypesDev could catch more cases (e.g. context) but only in DEV bundles.
 
+    // --------------- 3. 重置全局变量,并返回 -------------------
+    // 执行function之后, 还原被修改的全局变量, 不影响下一次调用
+
     var didRenderTooFewHooks =
       currentHook !== null && currentHook.next !== null;
     renderLanes = NoLanes;
@@ -18108,6 +18117,7 @@
 
     return children;
   }
+
   function bailoutHooks(current, workInProgress, lanes) {
     workInProgress.updateQueue = current.updateQueue;
     workInProgress.flags &= ~(Passive | Update);
@@ -18157,6 +18167,10 @@
     didScheduleRenderPhaseUpdateDuringThisPass = false;
   }
 
+  /**
+   * TODO
+   * 无论useState, useEffect, 内部都通过mountWorkInProgressHook创建一个 hook.
+   */
   function mountWorkInProgressHook() {
     var hook = {
       memoizedState: null,
@@ -18167,9 +18181,11 @@
     };
 
     if (workInProgressHook === null) {
+      // 链表中首个hook
       // This is the first hook in the list
       currentlyRenderingFiber$1.memoizedState = workInProgressHook = hook;
     } else {
+      // 将hook添加到链表末尾
       // Append to the end of the list
       workInProgressHook = workInProgressHook.next = hook;
     }
@@ -18177,12 +18193,22 @@
     return workInProgressHook;
   }
 
+  /**
+   * TODO
+   * updateWorkInProgressHook函数逻辑简单:
+   * 目的是为了让currentHook和workInProgressHook两个指针同时向后移动.
+   * 由于renderWithHooks函数设置了workInProgress.memoizedState=null,
+   * 所以workInProgressHook初始值必然为null, 只能从currentHook克隆.
+   * 而从currentHook克隆而来的newHook.next=null, 进而导致workInProgressHook链表需要完全重建.
+   */
   function updateWorkInProgressHook() {
     // This function is used both for updates and for re-renders triggered by a
     // render phase update. It assumes there is either a current hook we can
     // clone, or a work-in-progress hook from a previous render pass that we can
     // use as a base. When we reach the end of the base list, we must switch to
     // the dispatcher used for mounts.
+
+    // 1. 移动currentHook指针
     var nextCurrentHook;
 
     if (currentHook === null) {
@@ -18197,6 +18223,7 @@
       nextCurrentHook = currentHook.next;
     }
 
+    // 2. 移动workInProgressHook指针
     var nextWorkInProgressHook;
 
     if (workInProgressHook === null) {
@@ -18219,12 +18246,15 @@
       }
 
       currentHook = nextCurrentHook;
+
+      // 3. 克隆currentHook作为新的workInProgressHook.
+      // 随后逻辑与mountWorkInProgressHook一致
       var newHook = {
         memoizedState: currentHook.memoizedState,
         baseState: currentHook.baseState,
         baseQueue: currentHook.baseQueue,
         queue: currentHook.queue,
-        next: null,
+        next: null, // 注意next指针是null
       };
 
       if (workInProgressHook === null) {
@@ -18712,6 +18742,7 @@
   }
 
   function mountState(initialState) {
+    debugger;
     var hook = mountWorkInProgressHook();
 
     if (typeof initialState === "function") {
@@ -20650,7 +20681,7 @@
   }
 
   /**
-   * TODO Hooks的时候深入看
+   * TODO Hooks
    */
   function updateFunctionComponent(
     current,
@@ -22931,6 +22962,8 @@
       case FunctionComponent: {
         //  函数组件
         var _Component = workInProgress.type;
+        console.log("_Component", _Component);
+        debugger;
         var unresolvedProps = workInProgress.pendingProps;
         var resolvedProps =
           workInProgress.elementType === _Component
@@ -23212,6 +23245,7 @@
         currentHostContext
       ); // TODO: Type this specific to this type of component.
 
+      debugger;
       workInProgress.updateQueue = updatePayload; // If the update payload indicates that there is a change or if there
       // is a new ref we mark this as an update. All the work is done in commitWork.
 
@@ -24513,6 +24547,8 @@
 
   /**
    * 在这个函数内会执行getSnapshotBeforeUpdate这个生命周期
+   *    对于ClassComponent类型节点, 调用了instance.getSnapshotBeforeUpdate生命周期函数
+   *    对于HostRoot类型节点, 调用clearContainer清空了容器节点(即div#root这个 dom 节点).
    */
   function commitBeforeMutationLifeCycles(current, finishedWork) {
     switch (finishedWork.tag) {
@@ -24560,7 +24596,6 @@
                 }
               }
             }
-
             var snapshot = instance.getSnapshotBeforeUpdate(
               finishedWork.elementType === finishedWork.type
                 ? prevProps
@@ -24755,6 +24790,8 @@
 
         if (finishedWork.flags & Update) {
           if (current === null) {
+            // 初次渲染: 调用 componentDidMount
+
             // We could update instance props and state here,
             // but instead we rely on them being set during last render.
             // TODO: revisit this when we implement resuming.
@@ -24828,7 +24865,7 @@
               }
             }
 
-            // 如果current !== null 执行 componentDidMount
+            // 如果current !== null（更新阶段） 执行 componentDidMount
             {
               instance.componentDidUpdate(
                 prevProps,
@@ -24843,6 +24880,7 @@
         var updateQueue = finishedWork.updateQueue;
 
         if (updateQueue !== null) {
+          // 处理update回调函数 如: this.setState({}, callback)
           {
             if (
               finishedWork.type === finishedWork.elementType &&
@@ -24915,6 +24953,8 @@
         if (current === null && finishedWork.flags & Update) {
           var type = finishedWork.type;
           var props = finishedWork.memoizedProps;
+
+          // 设置focus等原生状态
           commitMount(_instance2, type, props);
         }
 
@@ -26360,6 +26400,7 @@
       // or, if something suspended, wait to commit it after a timeout.
 
       var finishedWork = root.current.alternate;
+      debugger;
       root.finishedWork = finishedWork;
       root.finishedLanes = lanes;
       finishConcurrentRender(root, exitStatus, lanes);
@@ -27171,6 +27212,7 @@
         setCurrentFiber(completedWork);
         var next = void 0;
 
+        // 1. 处理Fiber节点, 执行completeWork
         if ((completedWork.mode & ProfileMode) === NoMode) {
           next = completeWork(current, completedWork, subtreeRenderLanes);
         } else {
@@ -27183,20 +27225,25 @@
         resetCurrentFiber();
 
         if (next !== null) {
+          // 如果派生出其他的子节点, 则回到`beginWork`阶段进行处理
           // Completing this fiber spawned new work. Work on that next.
           workInProgress = next;
           return;
         }
 
+        // 重置子节点的优先级
         resetChildLanes(completedWork);
 
         if (
           returnFiber !== null && // Do not append effects to parents if a sibling failed to complete
           (returnFiber.flags & Incomplete) === NoFlags
         ) {
+          debugger;
           // Append all the effects of the subtree and this fiber onto the effect
           // list of the parent. The completion order of the children affects the
           // side-effect order.
+          // 2. 收集当前Fiber节点以及其子树的副作用effects
+          // 2.1 把子节点的副作用队列添加到父节点上
           if (returnFiber.firstEffect === null) {
             returnFiber.firstEffect = completedWork.firstEffect;
           }
@@ -27218,6 +27265,7 @@
           // list. PerformedWork effect is read by React DevTools but shouldn't be
           // committed.
 
+          // 2.2 如果当前fiber节点有副作用, 将其添加到子节点的副作用队列之后.
           if (flags > PerformedWork) {
             if (returnFiber.lastEffect !== null) {
               returnFiber.lastEffect.nextEffect = completedWork;
@@ -27229,6 +27277,7 @@
           }
         }
       } else {
+        // 异常处理, 先忽略
         // This fiber did not complete because something threw. Pop values off
         // the stack without entering the complete phase. If this is a boundary,
         // capture values if possible.
@@ -27269,16 +27318,19 @@
       var siblingFiber = completedWork.sibling;
 
       if (siblingFiber !== null) {
+        // 如果有兄弟节点, 返回之后再次进入`beginWork`阶段
         // If there is more work to do in this returnFiber, do that next.
         workInProgress = siblingFiber;
         return;
       } // Otherwise, return to the parent
 
+      // 移动指针, 指向下一个节点
       completedWork = returnFiber; // Update the next thing we're working on in case something throws.
 
       workInProgress = completedWork;
     } while (completedWork !== null); // We've reached the root.
 
+    // 已回溯到根节点, 设置workInProgressRootExitStatus = RootCompleted
     if (workInProgressRootExitStatus === RootIncomplete) {
       workInProgressRootExitStatus = RootCompleted;
     }
@@ -27404,6 +27456,7 @@
       // no more pending effects.
       // TODO: Might be better if `flushPassiveEffects` did not automatically
       // flush synchronous work at the end, to avoid factoring hazards like this.
+
       // 在开始本地commit之前 看看有没有之前没执行完的effect
       flushPassiveEffects();
     } while (rootWithPendingPassiveEffects !== null);
@@ -27423,6 +27476,7 @@
       return null;
     }
 
+    // 清空FiberRoot对象上的属性
     root.finishedWork = null;
     root.finishedLanes = NoLanes;
 
@@ -27472,6 +27526,9 @@
       // the root has an effect, we need to add it to the end of the list. The
       // resulting list is the set that would belong to the root's parent, if it
       // had one; that is, all the effects in the tree including the root.
+
+      // 默认情况下fiber节点的副作用队列是不包括自身的
+      // 如果根节点有副作用, 则将根节点添加到副作用队列的末尾
       if (finishedWork.lastEffect !== null) {
         finishedWork.lastEffect.nextEffect = finishedWork;
         firstEffect = finishedWork.firstEffect;
@@ -27482,6 +27539,8 @@
       // There is no effect on the root.
       firstEffect = finishedWork.firstEffect;
     }
+
+    // ============ 渲染 ============
 
     // 存在链表
     if (firstEffect !== null) {
@@ -27498,6 +27557,8 @@
 
       focusedInstanceHandle = prepareForCommit(root.containerInfo);
       shouldFireAfterActiveInstanceBlur = false;
+
+      // 阶段1: dom突变之前
       nextEffect = firstEffect;
 
       do {
@@ -27526,6 +27587,8 @@
         recordCommitTime();
       } // The next phase is the mutation phase, where we mutate the host tree.
 
+      // 阶段2: dom突变, 界面发生改变
+      // dom 变更, 界面得到更新. 处理副作用队列中带有ContentReset, Ref, Placement, Update, Deletion, Hydrating标记的fiber节点.
       nextEffect = firstEffect;
 
       do {
@@ -27553,18 +27616,20 @@
         }
       } while (nextEffect !== null);
 
+      // 恢复界面状态
       resetAfterCommit(root.containerInfo); // The work-in-progress tree is now the current tree. This must come after
       // the mutation phase, so that the previous tree is still current during
       // componentWillUnmount, but before the layout phase, so that the finished
       // work is current during componentDidMount/Update.
 
-      // 改变
+      // 切换current指针
       root.current = finishedWork; // The next phase is the layout phase, where we call effects that read
       // the host tree after it's been mutated. The idiomatic use case for this is
       // layout, but class component lifecycles also fire here for legacy reasons.
 
+      // 阶段3: layout阶段, 调用生命周期componentDidUpdate和回调函数等
+      // dom 变更后, 处理副作用队列中带有Update, Callback, Ref标记的fiber节点.
       nextEffect = firstEffect;
-
       do {
         {
           invokeGuardedCallback(null, commitLayoutEffects, null, root, lanes);
@@ -27605,9 +27670,12 @@
       }
     }
 
+    // ============ 渲染后: 重置与清理 ============
     var rootDidHavePassiveEffects = rootDoesHavePassiveEffects;
 
     if (rootDoesHavePassiveEffects) {
+      // 有被动作用(使用useEffect), 保存一些全局变量
+
       // This commit has passive effects. Stash a reference to them. But don't
       // schedule a callback until after flushing layout work.
       rootDoesHavePassiveEffects = false;
@@ -27618,6 +27686,13 @@
       // We are done with the effect chain at this point so let's clear the
       // nextEffect pointers to assist with GC. If we have passive effects, we'll
       // clear this in flushPassiveEffects.
+
+      // 分解副作用队列链表, 辅助垃圾回收
+      // 清除副作用队列
+      //
+      // 由于副作用队列是一个链表, 由于单个fiber对象的引用关系, 无法被gc回收.
+      // 将链表全部拆开, 当fiber对象不再使用的时候, 可以被gc回收
+
       nextEffect = firstEffect;
 
       while (nextEffect !== null) {
@@ -27689,7 +27764,10 @@
     } // Always call this before exiting `commitRoot`, to ensure that any
     // additional work on this root is scheduled.
 
-    // 重新调度一次
+    // 下面代码用于检测是否有新的更新任务
+    // 比如在componentDidMount函数中, 再次调用setState()
+
+    // 1. 检测常规(异步)任务, 如果有则会发起异步调度(调度中心`scheduler`只能异步调用)
     ensureRootIsScheduled(root, now());
 
     if (hasUncaughtError) {
@@ -27707,12 +27785,15 @@
       return null;
     } // If layout work was scheduled, flush it now.
 
-    // 同步更新队列 比如 useLayoutEffect中setState
+    // 2. 检测同步任务, 如果有则主动调用flushSyncCallbackQueue(无需再次等待scheduler调度), 再次进入fiber树构造循环
     flushSyncCallbackQueue();
 
     return null;
   }
 
+  /**
+   * dom 变更之前, 处理副作用队列中带有Snapshot,Passive标记的fiber节点.
+   */
   function commitBeforeMutationEffects() {
     while (nextEffect !== null) {
       var current = nextEffect.alternate;
@@ -27740,16 +27821,29 @@
 
       var flags = nextEffect.flags;
 
+      // 处理`Snapshot`标记
       if ((flags & Snapshot) !== NoFlags) {
         setCurrentFiber(nextEffect);
         commitBeforeMutationLifeCycles(current, nextEffect);
         resetCurrentFiber();
       }
 
-      // 如果包含了Passive
+      // 处理`Passive`标记
       if ((flags & Passive) !== NoFlags) {
         // If there are passive effects, schedule a callback to flush at
         // the earliest opportunity.
+
+        // Passive标记只在使用了hook, useEffect会出现. 所以此处是针对hook对象的处理
+
+        /**
+         * Passive标记只会在使用了hook对象的function类型的节点上存在,
+         * 后续的执行过程在hook原理中详细说明.
+         * 此处我们需要了解在commitRoot的第一个阶段,
+         * 为了处理hook对象(如useEffect),
+         * 通过scheduleCallback单独注册了一个调度任务task, 等待调度中心scheduler处理.
+         *
+         * ps: 通过调度中心scheduler调度的任务task均是通过MessageChannel触发, 都是异步宏任务执行
+         */
         if (!rootDoesHavePassiveEffects) {
           rootDoesHavePassiveEffects = true;
           /**
@@ -27778,11 +27872,12 @@
         commitResetTextContent(nextEffect);
       }
 
-      // useRef中介绍
+      // 处理Ref useRef中介绍
       if (flags & Ref) {
         var current = nextEffect.alternate;
 
         if (current !== null) {
+          // 先清空ref, 在commitRoot的第三阶段(dom变更后), 再重新赋值
           commitDetachRef(current);
         }
       } // The following switch statement is only concerned about placement,
@@ -27792,8 +27887,17 @@
 
       var primaryFlags = flags & (Placement | Update | Deletion | Hydrating);
 
+      /**
+       * 处理 DOM 突变:
+          新增: 函数调用栈 commitPlacement -> insertOrAppendPlacementNode -> appendChild
+          更新: 函数调用栈 commitWork -> commitUpdate
+          删除: 函数调用栈 commitDeletion -> removeChild
+
+          appendChild  commitUpdate removeChild 都存在react-dom里
+       */
       switch (primaryFlags) {
         case Placement: {
+          // 新增节点
           commitPlacement(nextEffect); // Clear the "placement" from effect tag so that we know that this is
           // inserted, before any life-cycles like componentDidMount gets called.
           // TODO: findDOMNode doesn't rely on this any more but isMounted does
@@ -27809,8 +27913,9 @@
           // inserted, before any life-cycles like componentDidMount gets called.
 
           nextEffect.flags &= ~Placement; // Update
-
+          // Update
           var _current = nextEffect.alternate;
+          // TODO
           commitWork(_current, nextEffect);
           break;
         }
@@ -27829,12 +27934,14 @@
         }
 
         case Update: {
+          // 更新节点
           var _current3 = nextEffect.alternate;
           commitWork(_current3, nextEffect);
           break;
         }
 
         case Deletion: {
+          // 删除节点
           commitDeletion(root, nextEffect);
           break;
         }
@@ -27850,6 +27957,7 @@
       setCurrentFiber(nextEffect);
       var flags = nextEffect.flags;
 
+      // 处理 Update和Callback标记
       if (flags & (Update | Callback)) {
         var current = nextEffect.alternate;
         commitLifeCycles(root, current, nextEffect);
@@ -27857,6 +27965,7 @@
 
       {
         if (flags & Ref) {
+          // 重新设置ref
           commitAttachRef(nextEffect);
         }
       }
