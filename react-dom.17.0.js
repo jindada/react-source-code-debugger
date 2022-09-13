@@ -18041,7 +18041,7 @@
 
     // 执行function函数, 其中进行分析Hooks的使用
     var children = Component(props, secondArg); // Check if there was a render phase update
-    debugger;
+    // debugger;
 
     if (didScheduleRenderPhaseUpdateDuringThisPass) {
       // Keep rendering in a loop for as long as render phase updates continue to
@@ -18742,7 +18742,7 @@
   }
 
   function mountState(initialState) {
-    debugger;
+    // debugger;
     var hook = mountWorkInProgressHook();
 
     if (typeof initialState === "function") {
@@ -22723,7 +22723,7 @@
         // This may be unset if the props are determined to be equal later (memo).
         didReceiveUpdate = true;
       } else if (!includesSomeLane(renderLanes, updateLanes)) {
-        debugger;
+        // debugger;
         // 判断本次更新是否有正在进行的任务
         // 当前渲染优先级renderLanes不包括fiber.lanes, 表明当前fiber节点无需更新
 
@@ -22963,7 +22963,7 @@
         //  函数组件
         var _Component = workInProgress.type;
         console.log("_Component", _Component);
-        debugger;
+        // debugger;
         var unresolvedProps = workInProgress.pendingProps;
         var resolvedProps =
           workInProgress.elementType === _Component
@@ -23001,7 +23001,7 @@
         return updateHostRoot(current, workInProgress, renderLanes);
 
       case HostComponent: // 元素节点
-        debugger;
+        // debugger;
         return updateHostComponent(current, workInProgress, renderLanes);
 
       case HostText: // 文本节点
@@ -23245,7 +23245,7 @@
         currentHostContext
       ); // TODO: Type this specific to this type of component.
 
-      debugger;
+      // debugger;
       workInProgress.updateQueue = updatePayload; // If the update payload indicates that there is a change or if there
       // is a new ref we mark this as an update. All the work is done in commitWork.
 
@@ -26059,7 +26059,7 @@
    * 注册调度任务, 经过Scheduler包的调度, 间接进行fiber构造.
    */
   function scheduleUpdateOnFiber(fiber, lane, eventTime) {
-    debugger;
+    // debugger;
     // 更新阶段首先进来的是触发了更新的fiber
     console.log(fiber); // HostRootFiber
 
@@ -26400,7 +26400,7 @@
       // or, if something suspended, wait to commit it after a timeout.
 
       var finishedWork = root.current.alternate;
-      debugger;
+      // debugger;
       root.finishedWork = finishedWork;
       root.finishedLanes = lanes;
       finishConcurrentRender(root, exitStatus, lanes);
@@ -26649,7 +26649,7 @@
     root.finishedLanes = lanes;
 
     // render结束
-    debugger;
+    // debugger;
 
     // 进入commit阶段
     commitRoot(root); // Before exiting, make sure there's a callback scheduled for the next
@@ -27197,6 +27197,7 @@
   // 将更新的fiber组成一个链表
   // TODO 熟悉链表操作
   function completeUnitOfWork(unitOfWork) {
+    // debugger
     // Attempt to complete the current unit of work, then move to the next
     // sibling. If there are no more siblings, return to the parent fiber.
     var completedWork = unitOfWork;
@@ -27234,11 +27235,15 @@
         // 重置子节点的优先级
         resetChildLanes(completedWork);
 
+        /**
+         * 父级fiber节点 存在 & 正常渲染
+         * ps: 如果当前的fiber节点的兄弟节点在执行 递 & 归 阶段出现异常 父级节点就会标记 Incomplete
+         */
         if (
           returnFiber !== null && // Do not append effects to parents if a sibling failed to complete
           (returnFiber.flags & Incomplete) === NoFlags
         ) {
-          debugger;
+          // debugger;
           // Append all the effects of the subtree and this fiber onto the effect
           // list of the parent. The completion order of the children affects the
           // side-effect order.
@@ -27267,6 +27272,7 @@
 
           // 2.2 如果当前fiber节点有副作用, 将其添加到子节点的副作用队列之后.
           if (flags > PerformedWork) {
+            // debugger;
             if (returnFiber.lastEffect !== null) {
               returnFiber.lastEffect.nextEffect = completedWork;
             } else {

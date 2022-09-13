@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>State Update</title>
+    <!-- <script src="react.17.0.js"></script>
+    <script src="react-dom.17.0.js"></script> -->
+    <script src="react.18.1.js"></script>
+    <script src="react-dom.18.1.js"></script>
+    <script src="babel.min.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel">
+      const MyApp = () => {
+        const buttonRef = React.useRef(null);
+        const [count, setCount] = React.useState(0);
+
+        React.useEffect(() => {
+            setTimeout(() => {
+                setCount(1)
+            }, 1000)
+            setTimeout(() => {
+                buttonRef.current.click();
+            }, 1040)
+        }, []);
+
+        const buttonClick = () => {
+            setCount(count => count + 2)
+        }
+        return (
+        <div>
+            <button ref={buttonRef} onClick={buttonClick}>增加2</button>
+            <div>
+                {Array.from({  length: 5000 }).map((_, index) => 
+                    <span key={index}>{count}</span>) }
+            </div>
+        </div>
+        );
+    }
+
+    const container = document.getElementById("root");
+    //   const root = ReactDOM.render(<MyApp />, container);
+    ReactDOM.createRoot(container).render(<MyApp />)
+
+    </script>
+  </body>
+</html>
