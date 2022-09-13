@@ -37,7 +37,11 @@
 
       function B() {
         const [value, setValue] = React.useState(0);
-        return <h2 onClick={() => setValue(value + 1)}><code>{value}</code></h2>;
+        return (
+          <h2 onClick={() => setValue(value + 1)}>
+            <code>{value}</code>
+          </h2>
+        );
       }
 
       const container = document.getElementById("root");

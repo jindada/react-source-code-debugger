@@ -14255,11 +14255,24 @@
   }
   function createUpdate(eventTime, lane) {
     var update = {
+      /**
+       * 任务时间，通过performance.now()获取的毫秒数。
+       * 由于该字段在未来会重构，当前我们不需要理解他 react18中仍然在
+       */
       eventTime: eventTime,
+      // 优先级
       lane: lane,
+      // 更新的类型，包括UpdateState | ReplaceState | ForceUpdate | CaptureUpdate
       tag: UpdateState,
+      /**
+       * 更新挂载的数据，不同类型组件挂载的数据不同。
+       * 对于ClassComponent，payload为this.setState的第一个传参。
+       * 对于HostRoot，payload为ReactDOM.render的第一个传参。
+       */
       payload: null,
+      // 更新的回调函数。setState的第二个参数
       callback: null,
+      // 与其他Update连接形成链表
       next: null,
     };
     return update;
@@ -19255,6 +19268,7 @@
     }
 
     var eventTime = requestEventTime();
+    // requestUpdateLane的作用是返回一个合适的 update 优先级.
     var lane = requestUpdateLane(fiber);
     var update = {
       lane: lane,
@@ -26112,6 +26126,7 @@
     // 如果是同步优先级
     if (lane === SyncLane) {
       if (
+        // TODO
         // legacy或blocking模式
         // executionContext
         // 在 render 过程中, 每一个阶段都会改变executionContext

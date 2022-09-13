@@ -17,32 +17,34 @@
         const [count, setCount] = React.useState(0);
 
         React.useEffect(() => {
-            setTimeout(() => {
-                setCount(1)
-            }, 1000)
-            setTimeout(() => {
-                buttonRef.current.click();
-            }, 1040)
+          setTimeout(() => {
+            setCount(1);
+          }, 1000);
+          setTimeout(() => {
+            buttonRef.current.click();
+          }, 1040);
         }, []);
 
         const buttonClick = () => {
-            setCount(count => count + 2)
-        }
+          setCount((count) => count + 2);
+        };
         return (
-        <div>
-            <button ref={buttonRef} onClick={buttonClick}>增加2</button>
+          <div>
+            <button ref={buttonRef} onClick={buttonClick}>
+              增加2
+            </button>
             <div>
-                {Array.from({  length: 5000 }).map((_, index) => 
-                    <span key={index}>{count}</span>) }
+              {Array.from({ length: 5000 }).map((_, index) => (
+                <span key={index}>{count}</span>
+              ))}
             </div>
-        </div>
+          </div>
         );
-    }
+      };
 
-    const container = document.getElementById("root");
-    //   const root = ReactDOM.render(<MyApp />, container);
-    ReactDOM.createRoot(container).render(<MyApp />)
-
+      const container = document.getElementById("root");
+      //   const root = ReactDOM.render(<MyApp />, container);
+      ReactDOM.createRoot(container).render(<MyApp />);
     </script>
   </body>
 </html>
