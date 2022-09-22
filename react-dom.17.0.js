@@ -13477,6 +13477,7 @@
   }
   function flushSyncCallbackQueue() {
     if (immediateQueueCallbackNode !== null) {
+      // debugger;
       var node = immediateQueueCallbackNode;
       immediateQueueCallbackNode = null;
       Scheduler_cancelCallback(node);
@@ -13495,6 +13496,7 @@
         try {
           var _isSync2 = true;
           var _queue = syncQueue;
+          // 把同步的任务都执行完了
           runWithPriority$1(ImmediatePriority$1, function () {
             for (; i < _queue.length; i++) {
               var callback = _queue[i];
@@ -14226,6 +14228,7 @@
   }
 
   function initializeUpdateQueue(fiber) {
+    // debugger;
     var queue = {
       baseState: fiber.memoizedState,
       firstBaseUpdate: null,
@@ -14288,13 +14291,18 @@
     var sharedQueue = updateQueue.shared;
     var pending = sharedQueue.pending;
 
+    // 有没有正在更新
     if (pending === null) {
       // This is the first update. Create a circular list.
+      // 自成一环
       update.next = update;
     } else {
+      // 跟pending成环
       update.next = pending.next;
       pending.next = update;
     }
+
+    debugger;
 
     sharedQueue.pending = update;
 
@@ -14497,17 +14505,20 @@
       currentlyProcessingQueue = queue.shared;
     }
 
+    // 本次更新开始前 已经存在的update
     var firstBaseUpdate = queue.firstBaseUpdate;
     var lastBaseUpdate = queue.lastBaseUpdate; // Check if there are pending updates. If so, transfer them to the base queue.
 
     var pendingQueue = queue.shared.pending;
 
+    // 是否有新产生的的update
     if (pendingQueue !== null) {
       queue.shared.pending = null; // The pending queue is circular. Disconnect the pointer between first
       // and last so that it's non-circular.
 
       var lastPendingUpdate = pendingQueue;
       var firstPendingUpdate = lastPendingUpdate.next;
+      // 打开环状链表
       lastPendingUpdate.next = null; // Append pending updates to base queue
 
       if (lastBaseUpdate === null) {
@@ -14516,6 +14527,7 @@
         lastBaseUpdate.next = firstPendingUpdate;
       }
 
+      // 新的update 连接在 老得update后面
       lastBaseUpdate = lastPendingUpdate; // If there's a current queue, and it's different from the base queue, then
       // we need to transfer the updates to that queue, too. Because the base
       // queue is a singly-linked list with no cycles, we can append to both
@@ -14524,6 +14536,7 @@
 
       var current = workInProgress.alternate;
 
+      // 如果current存在 就执行同样的操作
       if (current !== null) {
         // This is always non-null on a ClassComponent or HostRoot
         var currentQueue = current.updateQueue;
@@ -14541,6 +14554,7 @@
       }
     } // These values may change as we process the queue.
 
+    // 判断当前fiber是否存在update
     if (firstBaseUpdate !== null) {
       // Iterate through the list of updates to compute the result.
       var newState = queue.baseState; // TODO: Don't need to accumulate this. Instead, we can remove renderLanes
@@ -14556,10 +14570,12 @@
         var updateLane = update.lane;
         var updateEventTime = update.eventTime;
 
+        // 判断updateLane在本次更新的renderLanes中 是否足够
         if (!isSubsetOfLanes(renderLanes, updateLane)) {
           // Priority is insufficient. Skip this update. If this is the first
           // skipped update, the previous update/state is the new base
           // update/state.
+          // 如果优先级不够 克隆一个update 赋值给baseUpdate
           var clone = {
             eventTime: updateEventTime,
             lane: updateLane,
@@ -14594,6 +14610,7 @@
             newLastBaseUpdate = newLastBaseUpdate.next = _clone;
           } // Process this update.
 
+          // 基于当前的state计算一个新的state
           newState = getStateFromUpdate(
             workInProgress,
             queue,
@@ -14602,6 +14619,7 @@
             props,
             instance
           );
+          // setState的第二个参数 / ReactDom.render的第三个参数
           var callback = update.callback;
 
           if (callback !== null) {
@@ -14616,12 +14634,14 @@
           }
         }
 
+        // 下一个update
         update = update.next;
 
         if (update === null) {
           pendingQueue = queue.shared.pending;
 
           if (pendingQueue === null) {
+            // 本次更新结束
             break;
           } else {
             // An update was scheduled from inside a reducer. Add the new
@@ -14638,6 +14658,7 @@
         }
       } while (true);
 
+      // 本次更新都被执行了
       if (newLastBaseUpdate === null) {
         newBaseState = newState;
       }
@@ -14837,7 +14858,11 @@
         update.callback = callback;
       }
 
+      // updateQueue是在 initializeUpdateQueue 初始化的
+      // debugger;
+      // 排队更新
       enqueueUpdate(fiber, update);
+
       scheduleUpdateOnFiber(fiber, lane, eventTime);
     },
     enqueueReplaceState: function (inst, payload, callback) {
@@ -26075,7 +26100,7 @@
   function scheduleUpdateOnFiber(fiber, lane, eventTime) {
     // debugger;
     // 更新阶段首先进来的是触发了更新的fiber
-    console.log(fiber); // HostRootFiber
+    // console.log(fiber); // HostRootFiber
 
     checkForNestedUpdates();
     warnAboutRenderPhaseUpdatesInDEV(fiber);
@@ -26085,7 +26110,7 @@
     // 因为在初次创建时并没有与当前页面所对应的fiber树, 所以核心代码并没有执行, 最后直接返回了FiberRootNode对象.
     var root = markUpdateLaneFromFiberToRoot(fiber, lane);
 
-    console.log("workInProgressRoot", workInProgressRoot);
+    // console.log("workInProgressRoot", workInProgressRoot);
 
     if (root === null) {
       warnAboutUpdateOnUnmountedFiberInDEV(fiber);
@@ -26123,6 +26148,7 @@
 
     var priorityLevel = getCurrentPriorityLevel();
 
+    // debugger;
     // 如果是同步优先级
     if (lane === SyncLane) {
       if (
@@ -26146,6 +26172,7 @@
         // 直接进行`fiber构造`
         performSyncWorkOnRoot(root);
       } else {
+        // 后续的更新
         // 注册调度任务, 经过`Scheduler`包的调度, 间接进行`fiber构造`
         ensureRootIsScheduled(root, eventTime);
 
@@ -26160,6 +26187,9 @@
           // updates, to preserve historical behavior of legacy mode.
           resetRenderTimer();
           // 取消schedule调度 ,主动刷新回调队列,
+          /**
+           * setState 是同步还是异步的关键一行
+           */
           flushSyncCallbackQueue();
         }
       }
@@ -26253,13 +26283,20 @@
   // root has work on. This function is called on every update, and right before
   // exiting a task.
 
+  // ensure 确保 使..安全
   function ensureRootIsScheduled(root, currentTime) {
-    // TODO callbackNode是啥
+    // debugger;
+    // 前半部分: 判断是否需要注册新的调度
+
+    // 检查是否有其他优先级的任务
     var existingCallbackNode = root.callbackNode; // Check if any lanes are being starved by other work. If so, mark them as
+
     // expired so we know to work on those next.
+    // 检查过期任务??
+    markStarvedLanesAsExpired(root, currentTime);
 
-    markStarvedLanesAsExpired(root, currentTime); // Determine the next lanes to work on, and their priority.
-
+    // Determine the next lanes to work on, and their priority.
+    // 确定当前优先级
     var nextLanes = getNextLanes(
       root,
       root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes
@@ -26278,17 +26315,28 @@
       return;
     } // Check if there's an existing task. We may be able to reuse it.
 
+    // 节流防抖
     if (existingCallbackNode !== null) {
       var existingCallbackPriority = root.callbackPriority;
 
+      // 节流
+      // existingCallbackPriority === newCallbackPriority
+      // 新旧更新的优先级相同, 如连续多次执行setState,
+      // 则无需注册新task(继续沿用上一个优先级相同的task), 直接退出调用.
       if (existingCallbackPriority === newCallbackPriority) {
         // The priority hasn't changed. We can reuse the existing task. Exit.
         return;
       } // The priority changed. Cancel the existing callback. We'll schedule a new
       // one below.
 
+      // 防抖
+      // 判断条件: existingCallbackPriority !== newCallbackPriority,
+      // 新旧更新的优先级不同, 则取消旧task, 重新注册新task.
       cancelCallback(existingCallbackNode);
-    } // Schedule a new callback.
+    }
+
+    // Schedule a new callback.
+    // 后半部分: 注册调度任务
 
     var newCallbackNode;
 
@@ -26306,6 +26354,7 @@
         performSyncWorkOnRoot.bind(null, root)
       );
     } else {
+      // 并发优先级
       var schedulerPriorityLevel =
         lanePriorityToSchedulerPriority(newCallbackPriority);
       newCallbackNode = scheduleCallback(
@@ -26320,9 +26369,11 @@
   // goes through Scheduler.
 
   /**
-   * performConcurrentWorkOnRoot的逻辑与performSyncWorkOnRoot的不同之处在于, 对于可中断渲染的支持:
-   * 调用performConcurrentWorkOnRoot函数时, 首先检查是否处于render过程中, 是否需要恢复上一次渲染.
-   * 如果本次渲染被中断, 最后返回一个新的 performConcurrentWorkOnRoot 函数, 等待下一次调用.
+   * TODO render可中断渲染
+   * performConcurrentWorkOnRoot的逻辑与performSyncWorkOnRoot的不同之处在于,
+   * 对于可中断渲染的支持:
+   *  调用performConcurrentWorkOnRoot函数时, 首先检查是否处于render过程中, 是否需要恢复上一次渲染.
+   *  如果本次渲染被中断, 最后返回一个新的 performConcurrentWorkOnRoot 函数, 等待下一次调用.
    */
   function performConcurrentWorkOnRoot(root) {
     // Since we know we're in a React event, we can clear the current
@@ -26427,6 +26478,7 @@
     if (root.callbackNode === originalCallbackNode) {
       // The task node scheduled for this root is the same one that's
       // currently executed. Need to return a continuation.
+
       // 渲染被阻断, 返回一个新的performConcurrentWorkOnRoot函数, 等待下一次调用
       return performConcurrentWorkOnRoot.bind(null, root);
     }
@@ -26583,7 +26635,7 @@
       }
     }
 
-    // TODO ??
+    // TODO hooks相关的
     flushPassiveEffects();
     var lanes;
     var exitStatus;
@@ -26623,9 +26675,10 @@
         exitStatus = renderRootSync(root, lanes);
       }
     } else {
+      // debugger;
       // 获取本次render的优先级, 初次构造返回 NoLanes
       lanes = getNextLanes(root, NoLanes);
-      // 从root节点开始, 至上而下更新
+      // 进入render阶段
       exitStatus = renderRootSync(root, lanes);
     }
 
@@ -26664,7 +26717,7 @@
     root.finishedLanes = lanes;
 
     // render结束
-    // debugger;
+    debugger;
 
     // 进入commit阶段
     commitRoot(root); // Before exiting, make sure there's a callback scheduled for the next
@@ -27064,6 +27117,8 @@
         handleError(root, thrownValue);
       }
     } while (true);
+
+    // debugger;
 
     resetContextDependencies();
 
@@ -30122,6 +30177,7 @@
     var uninitializedFiber = createHostRootFiber(tag);
     root.current = uninitializedFiber;
     uninitializedFiber.stateNode = root;
+    // TODO
     initializeUpdateQueue(uninitializedFiber);
     return root;
   }

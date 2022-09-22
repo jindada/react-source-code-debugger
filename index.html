@@ -13,36 +13,45 @@
       function MyApp() {
         return (
           <div>
-            {/*
-              <span>
-                Hi,
-                <b>China</b>
-              </span>
-              <A />
-            */}
-            <B />
+            <A />
           </div>
         );
       }
 
       class A extends React.Component {
-        componentDidMount() {
-          console.log(`App Mount`);
-          console.log(`A组件对应的fiber节点: `, this._reactInternals);
-        }
+        state = {
+          count: 1,
+        };
+
+        // componentDidMount() {
+        //   console.log(`App Mount`);
+        //   console.log(`A组件对应的fiber节点: `, this._reactInternals);
+        // }
+
+        onClick = () => {
+          // setTimeout(() => {
+          this.setState({
+            count: this.state.count + 1,
+          });
+          this.setState({
+            count: this.state.count + 1000,
+          });
+          // }, 0);
+        };
+
         render() {
-          return <h1>A</h1>;
+          return <h1 onClick={this.onClick}>{this.state.count}</h1>;
         }
       }
 
-      function B() {
-        const [value, setValue] = React.useState(0);
-        return (
-          <h2 onClick={() => setValue(value + 1)}>
-            <code>{value}</code>
-          </h2>
-        );
-      }
+      // function B() {
+      //   const [value, setValue] = React.useState(0);
+      //   return (
+      //     <h2 onClick={() => setValue(value + 1)}>
+      //       <code>{value}</code>
+      //     </h2>
+      //   );
+      // }
 
       const container = document.getElementById("root");
       const root = ReactDOM.render(<MyApp />, container);
