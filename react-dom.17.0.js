@@ -6570,6 +6570,7 @@
     }
   }
 
+  // 解决饥饿问题
   function markStarvedLanesAsExpired(root, currentTime) {
     // TODO: This gets called every time we yield. We can optimize by storing
     // the earliest expiration time on the root. Then use that to quickly bail out
@@ -6584,7 +6585,13 @@
     var lanes = pendingLanes;
 
     while (lanes > 0) {
-      var index = pickArbitraryLaneIndex(lanes);
+      // 假设 lanes(InputDiscreteLanes) = 0b0000000000000000000000000011000
+      // clz32(lanes) = 27 (获取一个十进制数字对应二进制值中开头0的个数)
+      // 31 - clz32(lanes) = 4
+      // 1 << index = 0b0000000000000000000000000010000
+      // 相比最初的 lanes, 分离出来了最左边的1
+      // 通过 lanes 的定义, 数字越小的优先级越高, 所以此方法可以获取最低优先级的 lane
+      var index = pickArbitraryLaneIndex(lanes); // 31 - clz32(lanes);
       var lane = 1 << index;
       var expirationTime = expirationTimes[index];
 
@@ -6601,9 +6608,14 @@
         }
       } else if (expirationTime <= currentTime) {
         // This lane expired
+        // 如果该赛道已存在过期时间，且过期时间已经小于当前时间，
+        // 则代表任务已过期，需要将当前优先级合并到 expiredLanes，
+        // 这样在下一轮 render 阶段就会以同步优先级调度当前 HostRoot
+        // 属性增加|
         root.expiredLanes |= lane;
       }
 
+      // 属性删除& ~
       lanes &= ~lane;
     }
   } // This returns the highest priority pending lanes regardless of whether they
@@ -13460,7 +13472,7 @@
 
       immediateQueueCallbackNode = Scheduler_scheduleCallback(
         Scheduler_ImmediatePriority,
-        flushSyncCallbackQueueImpl
+        flushSyncCallbackQueueImpl // 通过runWithPriority同步执行
       );
     } else {
       // Push onto existing queue. Don't need to schedule a callback because
@@ -13476,13 +13488,14 @@
     }
   }
   function flushSyncCallbackQueue() {
+    // 取消immediateQueueCallbackNode
     if (immediateQueueCallbackNode !== null) {
       // debugger;
       var node = immediateQueueCallbackNode;
       immediateQueueCallbackNode = null;
       Scheduler_cancelCallback(node);
     }
-
+    // 通过runWithPriority同步执行
     flushSyncCallbackQueueImpl();
   }
 
@@ -14302,7 +14315,7 @@
       pending.next = update;
     }
 
-    debugger;
+    // debugger;
 
     sharedQueue.pending = update;
 
@@ -14496,7 +14509,7 @@
   }
 
   function processUpdateQueue(workInProgress, props, instance, renderLanes) {
-    // debugger;
+    debugger;
     // This is always non-null on a ClassComponent or HostRoot
     var queue = workInProgress.updateQueue;
     hasForceUpdate = false;
@@ -19378,7 +19391,7 @@
           warnIfNotCurrentlyActingUpdatesInDev(fiber);
         }
       }
-
+      // debugger;
       scheduleUpdateOnFiber(fiber, lane, eventTime);
     }
   }
@@ -26098,7 +26111,7 @@
    * 注册调度任务, 经过Scheduler包的调度, 间接进行fiber构造.
    */
   function scheduleUpdateOnFiber(fiber, lane, eventTime) {
-    // debugger;
+    debugger;
     // 更新阶段首先进来的是触发了更新的fiber
     // console.log(fiber); // HostRootFiber
 
@@ -26119,6 +26132,7 @@
 
     // TODO ??
     // lane:root.pendingLanes |= updateLane;
+
     markRootUpdated(root, lane, eventTime);
 
     if (root === workInProgressRoot) {
@@ -26150,6 +26164,7 @@
 
     // debugger;
     // 如果是同步优先级
+    // debugger;
     if (lane === SyncLane) {
       if (
         // TODO
@@ -26292,7 +26307,7 @@
     var existingCallbackNode = root.callbackNode; // Check if any lanes are being starved by other work. If so, mark them as
 
     // expired so we know to work on those next.
-    // 检查过期任务??
+    // 解决饥饿问题
     markStarvedLanesAsExpired(root, currentTime);
 
     // Determine the next lanes to work on, and their priority.
@@ -26388,7 +26403,7 @@
       }
     } // Flush any pending passive effects before deciding which lanes to work on,
     // in case they schedule additional work.
-
+    // debugger;
     var originalCallbackNode = root.callbackNode;
     // 1. 刷新pending状态的effects, 有可能某些effect会取消本次任务
     var didFlushPassiveEffects = flushPassiveEffects();
@@ -26717,7 +26732,7 @@
     root.finishedLanes = lanes;
 
     // render结束
-    debugger;
+    // debugger;
 
     // 进入commit阶段
     commitRoot(root); // Before exiting, make sure there's a callback scheduled for the next
@@ -26914,7 +26929,7 @@
     // TODO workInProgressRoot = FiberRoot
     workInProgressRoot = root; // fiberRootNode
     workInProgress = createWorkInProgress(root.current, null);
-
+    // debugger;
     workInProgressRootRenderLanes =
       subtreeRenderLanes =
       workInProgressRootIncludedLanes =
@@ -27160,11 +27175,13 @@
     var prevDispatcher = pushDispatcher(); // If the root or lanes have changed, throw out the existing stack
     // and prepare a fresh one. Otherwise we'll continue where we left off.
 
+    // 清除上一次更新已经进行的状态
     if (
       workInProgressRoot !== root ||
       workInProgressRootRenderLanes !== lanes
     ) {
       resetRenderTimer();
+      //
       prepareFreshStack(root, lanes);
       startWorkOnPendingInteractions(root, lanes);
     }
@@ -27303,6 +27320,7 @@
         }
 
         // 重置子节点的优先级
+        // resetChildLanes中只收集当前正在complete的fiber节点的子节点和兄弟节点的lanes以及childLanes：
         resetChildLanes(completedWork);
 
         /**
@@ -27477,6 +27495,7 @@
       completedWork.actualDuration = actualDuration;
       completedWork.treeBaseDuration = treeBaseDuration;
     } else {
+      // 循环子节点和兄弟节点，收集lanes
       var _child = completedWork.child;
 
       while (_child !== null) {
@@ -27488,6 +27507,7 @@
       }
     }
 
+    // 将收集到的lanes放到该fiber节点的childLanes中
     completedWork.childLanes = newChildLanes;
   }
 
@@ -27568,10 +27588,12 @@
     root.callbackNode = null; // Update the first and last pending times on this root. The new first
     // pending time is whatever is left on the root fiber.
 
+    // 将收集到的childLanes，连同root自己的lanes，一并赋值给remainingLanes
     var remainingLanes = mergeLanes(
       finishedWork.lanes,
       finishedWork.childLanes
     );
+    // markRootFinished中会将remainingLanes赋值给remainingLanes
     markRootFinished(root, remainingLanes); // Clear already finished discrete updates in case that a later call of
     // `flushDiscreteUpdates` starts a useless render pass which may cancels
     // a scheduled timeout.
@@ -27844,6 +27866,7 @@
     // 比如在componentDidMount函数中, 再次调用setState()
 
     // 1. 检测常规(异步)任务, 如果有则会发起异步调度(调度中心`scheduler`只能异步调用)
+    debugger;
     ensureRootIsScheduled(root, now());
 
     if (hasUncaughtError) {
@@ -31006,6 +31029,8 @@
     var root = container._reactRootContainer;
     var fiberRoot;
 
+    // debugger;
+
     if (!root) {
       // Initial mount
       root = container._reactRootContainer = legacyCreateRootFromDOMContainer(
@@ -31379,4 +31404,5 @@
   exports.unstable_createPortal = unstable_createPortal;
   exports.unstable_renderSubtreeIntoContainer = renderSubtreeIntoContainer;
   exports.version = ReactVersion;
+  exports.createRoot = (container) => new ReactDOMRoot(container);
 });

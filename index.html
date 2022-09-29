@@ -34,7 +34,7 @@
             count: this.state.count + 1,
           });
           this.setState({
-            count: this.state.count + 1000,
+            count: this.state.count + 2,
           });
           // }, 0);
         };
@@ -55,6 +55,7 @@
 
       const container = document.getElementById("root");
       const root = ReactDOM.render(<MyApp />, container);
+      // ReactDOM.createRoot(container).render(<MyApp />);
     </script>
   </body>
 </html>

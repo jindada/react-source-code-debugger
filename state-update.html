@@ -3,47 +3,84 @@
   <head>
     <meta charset="UTF-8" />
     <title>State Update</title>
-    <!-- <script src="react.17.0.js"></script>
-    <script src="react-dom.17.0.js"></script> -->
-    <script src="react.18.1.js"></script>
-    <script src="react-dom.18.1.js"></script>
+    <script src="react.17.0.js"></script>
+    <script src="react-dom.17.0.js"></script>
     <script src="babel.min.js"></script>
   </head>
   <body>
     <div id="root"></div>
     <script type="text/babel">
-      const MyApp = () => {
-        const buttonRef = React.useRef(null);
-        const [count, setCount] = React.useState(0);
+      // const MyApp = () => {
+      //   const buttonRef = React.useRef(null);
+      //   const [count, setCount] = React.useState(0);
 
-        React.useEffect(() => {
+      //   React.useEffect(() => {
+      //     debugger;
+      //     setTimeout(() => {
+      //       setCount(1);
+      //     }, 1000);
+      //     setTimeout(() => {
+      //       buttonRef.current.click();
+      //     }, 1001);
+      //   }, []);
+
+      //   const buttonClick = () => {
+      //     setCount((count) => count + 2);
+      //   };
+      //   return (
+      //     <div>
+      //       <button ref={buttonRef} onClick={buttonClick}>
+      //         增加2
+      //       </button>
+      //       <div>
+      //         {Array.from({ length: 5000 }).map((_, index) => (
+      //           <span key={index}>{count}</span>
+      //         ))}
+      //       </div>
+      //     </div>
+      //   );
+      // };
+
+      class MyApp extends React.Component {
+        state = {
+          count: 0,
+        };
+
+        buttonRef = React.createRef(null);
+
+        componentDidMount() {
           setTimeout(() => {
-            setCount(1);
+            this.setState({
+              count: 1,
+            });
           }, 1000);
           setTimeout(() => {
-            buttonRef.current.click();
-          }, 1040);
-        }, []);
+            this.buttonRef.current.click();
+          }, 1002);
+        }
 
-        const buttonClick = () => {
-          setCount((count) => count + 2);
+        buttonClick = () => {
+          this.setState({
+            count: this.state.count + 2,
+          });
         };
-        return (
-          <div>
-            <button ref={buttonRef} onClick={buttonClick}>
-              增加2
-            </button>
+        render() {
+          return (
             <div>
-              {Array.from({ length: 5000 }).map((_, index) => (
-                <span key={index}>{count}</span>
-              ))}
+              <button ref={this.buttonRef} onClick={this.buttonClick}>
+                增加2
+              </button>
+              <div>
+                {Array.from({ length: 5000 }).map((_, index) => (
+                  <span key={index}>{this.state.count}</span>
+                ))}
+              </div>
             </div>
-          </div>
-        );
-      };
+          );
+        }
+      }
 
       const container = document.getElementById("root");
-      //   const root = ReactDOM.render(<MyApp />, container);
       ReactDOM.createRoot(container).render(<MyApp />);
     </script>
   </body>
