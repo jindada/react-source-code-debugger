@@ -11,51 +11,14 @@
     <div id="root"></div>
     <script type="text/babel">
       function MyApp() {
+        const [count, setCount] = React.useState(0);
         return (
-          <div>
-            <A />
-          </div>
+          <div onClick={() => setCount(count => count + 1)}>{count}</div>
         );
       }
-
-      class A extends React.Component {
-        state = {
-          count: 1,
-        };
-
-        // componentDidMount() {
-        //   console.log(`App Mount`);
-        //   console.log(`A组件对应的fiber节点: `, this._reactInternals);
-        // }
-
-        onClick = () => {
-          // setTimeout(() => {
-          this.setState({
-            count: this.state.count + 1,
-          });
-          this.setState({
-            count: this.state.count + 2,
-          });
-          // }, 0);
-        };
-
-        render() {
-          return <h1 onClick={this.onClick}>{this.state.count}</h1>;
-        }
-      }
-
-      // function B() {
-      //   const [value, setValue] = React.useState(0);
-      //   return (
-      //     <h2 onClick={() => setValue(value + 1)}>
-      //       <code>{value}</code>
-      //     </h2>
-      //   );
-      // }
-
+      
       const container = document.getElementById("root");
       const root = ReactDOM.render(<MyApp />, container);
-      // ReactDOM.createRoot(container).render(<MyApp />);
     </script>
   </body>
 </html>
