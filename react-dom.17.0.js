@@ -18825,19 +18825,28 @@
   }
 
   function pushEffect(tag, create, destroy, deps) {
+    // 1. 创建effect对象
+
+    // export const NoFlags = /*  */  0b000;
+    // export const HasEffect = /* */ 0b001; // 有副作用, 可以被触发
+    // export const Layout = /*    */ 0b010; // Layout, dom突变后同步触发
+    // export const Passive = /*   */ 0b100; // Passive, dom突变前异步触发
+
     var effect = {
       tag: tag,
-      create: create,
-      destroy: destroy,
-      deps: deps,
+      create: create, // useEffect的第一个参数
+      destroy: destroy, // useEffect的第一个参数的返回函数
+      deps: deps, // 依赖项, 如果依赖项变动, 会创建新的effect.
       // Circular
       next: null,
     };
+    // 2. 把effect对象添加到环形链表末尾
     var componentUpdateQueue = currentlyRenderingFiber$1.updateQueue;
 
     if (componentUpdateQueue === null) {
-      componentUpdateQueue = createFunctionComponentUpdateQueue();
+      componentUpdateQueue = createFunctionComponentUpdateQueue(); // { lastEffect: null }
       currentlyRenderingFiber$1.updateQueue = componentUpdateQueue;
+      // updateQueue.lastEffect是一个环形链表
       componentUpdateQueue.lastEffect = effect.next = effect;
     } else {
       var lastEffect = componentUpdateQueue.lastEffect;
@@ -18875,9 +18884,13 @@
   }
 
   function mountEffectImpl(fiberFlags, hookFlags, create, deps) {
+    // 创建hook
     var hook = mountWorkInProgressHook();
     var nextDeps = deps === undefined ? null : deps;
+    // 2. 设置workInProgress的副作用标记
     currentlyRenderingFiber$1.flags |= fiberFlags;
+    // 2. 创建Effect, 挂载到hook.memoizedState上
+    // 注意: 状态Hook中hook.memoizedState = state
     hook.memoizedState = pushEffect(
       HasEffect | hookFlags,
       create,
@@ -18887,10 +18900,11 @@
   }
 
   function updateEffectImpl(fiberFlags, hookFlags, create, deps) {
+    // 1. 获取当前hook
     var hook = updateWorkInProgressHook();
     var nextDeps = deps === undefined ? null : deps;
     var destroy = undefined;
-
+    // 2. 分析依赖
     if (currentHook !== null) {
       var prevEffect = currentHook.memoizedState;
       destroy = prevEffect.destroy;
@@ -18899,6 +18913,7 @@
         var prevDeps = prevEffect.deps;
 
         if (areHookInputsEqual(nextDeps, prevDeps)) {
+          // 2.1 如果依赖不变, 新建effect(tag不含HookHasEffect)
           pushEffect(hookFlags, create, destroy, nextDeps);
           return;
         }
@@ -18906,6 +18921,7 @@
     }
 
     currentlyRenderingFiber$1.flags |= fiberFlags;
+    // 2.2 如果依赖改变, 更改fiber.flag, 新建effect
     hook.memoizedState = pushEffect(
       HasEffect | hookFlags,
       create,
@@ -24717,6 +24733,7 @@
 
       do {
         if ((effect.tag & tag) === tag) {
+          // 根据传入的tag过滤 effect链表.
           // Unmount
           // effect.destroy === 执行useEffect的回调函数
           var destroy = effect.destroy;
@@ -24732,6 +24749,8 @@
     }
   }
 
+  // 注意在调用commitHookEffectListMount(HookLayout | HookHasEffect, finishedWork)时,
+  // 参数是HookLayout | HookHasEffect,所以只处理由useLayoutEffect()创建的effect.
   function commitHookEffectListMount(tag, finishedWork) {
     var updateQueue = finishedWork.updateQueue;
     var lastEffect = updateQueue !== null ? updateQueue.lastEffect : null;
@@ -24743,7 +24762,9 @@
       do {
         if ((effect.tag & tag) === tag) {
           // Mount
+          // useEffect第一个函数
           var create = effect.create;
+          // 赋值第一个函数的返回函数
           effect.destroy = create();
 
           {
@@ -24788,6 +24809,8 @@
     }
   }
 
+  // schedulePassiveEffects就是把带有Passive标记的effect筛选出来(由useEffect创建),
+  // 添加到一个全局数组(pendingPassiveHookEffectsUnmount和pendingPassiveHookEffectsMount).
   function schedulePassiveEffects(finishedWork) {
     var updateQueue = finishedWork.updateQueue;
     var lastEffect = updateQueue !== null ? updateQueue.lastEffect : null;
@@ -24805,7 +24828,9 @@
           (tag & Passive$1) !== NoFlags$1 &&
           (tag & HasEffect) !== NoFlags$1
         ) {
+          // unmount effects 数组
           enqueuePendingPassiveHookEffectUnmount(finishedWork, effect);
+          // mount effects 数组
           enqueuePendingPassiveHookEffectMount(finishedWork, effect);
         }
 
@@ -24830,9 +24855,12 @@
         // e.g. a destroy function in one component should never override a ref set
         // by a create function in another component during the same commit.
         {
+          // 在此之前commitMutationEffects函数中, effect.destroy已经被调用,
+          // 所以effect.destroy永远不会影响到effect.create
           commitHookEffectListMount(Layout | HasEffect, finishedWork);
         }
 
+        // finishedWork实际上指代当前正在被遍历的有副作用的fiber
         schedulePassiveEffects(finishedWork);
         return;
       }
@@ -25647,6 +25675,7 @@
         // e.g. a destroy function in one component should never override a ref set
         // by a create function in another component during the same commit.
         {
+          // 在突变阶段调用销毁函数, 保证所有的effect.destroy函数都会在effect.create之前执行
           commitHookEffectListUnmount(Layout | HasEffect, finishedWork);
         }
 
@@ -26732,7 +26761,7 @@
     root.finishedLanes = lanes;
 
     // render结束
-    // debugger;
+    debugger;
 
     // 进入commit阶段
     commitRoot(root); // Before exiting, make sure there's a callback scheduled for the next
@@ -28034,6 +28063,7 @@
 
         case Update: {
           // 更新节点
+          // useEffect,useLayoutEffect都会设置Update标记
           var _current3 = nextEffect.alternate;
           commitWork(_current3, nextEffect);
           break;
@@ -28057,7 +28087,9 @@
       var flags = nextEffect.flags;
 
       // 处理 Update和Callback标记
+      // useEffect,useLayoutEffect都会设置Update标记
       if (flags & (Update | Callback)) {
+        // useEffect,useLayoutEffect都会设置Update标记
         var current = nextEffect.alternate;
         commitLifeCycles(root, current, nextEffect);
       }
@@ -28102,6 +28134,7 @@
     }
   }
   function enqueuePendingPassiveHookEffectUnmount(fiber, effect) {
+    // unmount effects 数组
     pendingPassiveHookEffectsUnmount.push(effect, fiber);
 
     {
@@ -28157,6 +28190,7 @@
     // Layout effects have the same constraint.
     // First pass: Destroy stale passive effects.
 
+    // 1. 执行 effect.destroy()
     var unmountEffects = pendingPassiveHookEffectsUnmount;
     pendingPassiveHookEffectsUnmount = [];
 
@@ -28199,6 +28233,7 @@
       }
     } // Second pass: Create new passive effects.
 
+    // 2. 执行新 effect.create(), 重新赋值到 effect.destroy
     var mountEffects = pendingPassiveHookEffectsMount;
     pendingPassiveHookEffectsMount = [];
 
